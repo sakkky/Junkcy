@@ -2,253 +2,391 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>少年探偵団 vs ジャンクシー</title>
 <style>
-body { font-family:sans-serif; background:#111; color:#fff; display:flex; justify-content:center; padding:20px;}
-#app { max-width:600px; width:100%;}
-#text { margin-bottom:20px; line-height:1.8; min-height:140px;}
-button { width:100%; padding:12px; margin-bottom:10px; background:#222; color:#fff; border:1px solid #444;}
-button:hover { background:#333;}
-#timer { margin-bottom:10px; color:#f66;}
-#score { margin-bottom:10px; color:#6f6;}
+  @import url('https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;700&display=swap');
+  
+  body {
+    font-family: 'M PLUS Rounded 1c', sans-serif;
+    background-color: #1a1a24;
+    color: #f0f0f0;
+    margin: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    overflow: hidden;
+  }
+  
+  #game-container {
+    width: 100%;
+    max-width: 800px;
+    height: 100%;
+    max-height: 600px;
+    background: #2a2a36;
+    position: relative;
+    box-shadow: 0 0 20px rgba(0,0,0,0.8);
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* 背景画像代わりの演出エリア */
+  #scene-view {
+    flex: 1;
+    background: linear-gradient(to bottom, #3a4052, #1a1a24);
+    position: relative;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+  }
+
+  #timer-bar {
+    height: 10px;
+    background: #ff4757;
+    width: 100%;
+    transition: width 1s linear;
+    display: none;
+  }
+
+  #info-header {
+    display: flex;
+    justify-content: space-between;
+    font-size: 14px;
+    color: #888;
+    margin-bottom: 10px;
+  }
+
+  /* テキストウィンドウ */
+  #text-window {
+    height: 200px;
+    background: rgba(0, 0, 0, 0.85);
+    border-top: 3px solid #555;
+    padding: 20px;
+    box-sizing: border-box;
+    position: relative;
+  }
+
+  #character-name {
+    font-weight: bold;
+    font-size: 18px;
+    margin-bottom: 10px;
+    letter-spacing: 2px;
+  }
+
+  #message-text {
+    font-size: 16px;
+    line-height: 1.8;
+    white-space: pre-wrap;
+  }
+
+  /* 選択肢エリア */
+  #choices-container {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 80%;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    z-index: 10;
+  }
+
+  button.choice-btn {
+    background: rgba(40, 40, 60, 0.95);
+    color: #fff;
+    border: 2px solid #777;
+    padding: 15px;
+    font-size: 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.2s;
+  }
+
+  button.choice-btn:hover {
+    background: #fff;
+    color: #000;
+    border-color: #fff;
+  }
+
+  /* キャラクターカラー */
+  .color-saizo { color: #4facfe; }
+  .color-monta { color: #ff758c; }
+  .color-junksy { color: #f7d794; text-shadow: 0 0 5px #f7d794; }
+  .color-sys { color: #a8e6cf; }
+
 </style>
 </head>
 <body>
-<div id="app">
-<div id="score"></div>
-<div id="timer"></div>
-<div id="text"></div>
-<div id="choices"></div>
+
+<div id="game-container">
+  <div id="timer-bar"></div>
+  <div id="scene-view">
+    <div id="info-header">
+      <span id="score-display">探偵ポイント: 0</span>
+      <span id="location-display">荒川区 某所</span>
+    </div>
+    <div id="choices-container"></div>
+  </div>
+  <div id="text-window">
+    <div id="character-name"></div>
+    <div id="message-text"></div>
+  </div>
 </div>
 
 <script>
-// ===== 状態 =====
-const state = {
-  ep1_correct:false,
-  ep2_route:null,
-  caught:false,
-  score:0,
-  timer:null
-};
-
-// ===== 音 =====
-const sounds = {
+// 効果音（ダミーURLですが、ブラウザの仕様で鳴るものもあります）
+const se = {
   click: new Audio("https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg"),
   spray: new Audio("https://actions.google.com/sounds/v1/foley/spray_paint.ogg"),
-  run: new Audio("https://actions.google.com/sounds/v1/foley/footsteps_run.ogg")
+  dash: new Audio("https://actions.google.com/sounds/v1/foley/footsteps_run.ogg")
 };
 
-// ===== データ =====
-const data = {
-start:"ep1_intro",
-
-scenes:{
-
-ep1_intro:{
-text:"荒川区には、荒川は流れていない。\n事件が始まる。",
-choices:[{label:"開始",next:"ep1_choice"}]
-},
-
-ep1_choice:{
-text:"どこを調べる？",
-timer:8,
-choices:[
-{label:"資料室",next:"ep1_A"},
-{label:"ステンシル",next:"ep1_B"},
-{label:"先生",next:"ep1_C"}
-]
-},
-
-ep1_A:{text:"全部“文字”だ。",choices:[{label:"推理",next:"ep1_guess"}]},
-ep1_B:{text:"絵と一致。",choices:[{label:"推理",next:"ep1_guess"}]},
-ep1_C:{text:"処分予定。",choices:[{label:"推理",next:"ep1_guess"}]},
-
-ep1_guess:{
-text:"目的は？",
-timer:6,
-choices:[
-{label:"金",next:"ep1_fail"},
-{label:"いたずら",next:"ep1_fail"},
-{label:"救う",next:"ep1_ok"}
-]
-},
-
-ep1_fail:{
-text:"推理失敗",
-effect:()=>state.score-=10,
-choices:[{label:"次へ",next:"ep2_intro"}]
-},
-
-ep1_ok:{
-text:"正解！",
-effect:()=>{
-state.ep1_correct=true;
-state.score+=20;
-},
-choices:[{label:"次へ",next:"ep2_intro"}]
-},
-
-// ===== 第2話 =====
-ep2_intro:{
-text:"ジャンクシーは何者？",
-choices:[
-{label:"警察",next:"ep2_police"},
-{label:"住民",next:"ep2_resident"},
-{label:"職人",next:"ep2_artisan"}
-]
-},
-
-ep2_police:{
-text:"犯罪だ",
-effect:()=>{state.ep2_route="crime";state.score+=5;},
-choices:[{label:"判断",next:"ep2_decision"}]
-},
-
-ep2_resident:{
-text:"微妙",
-effect:()=>{state.ep2_route="neutral";state.score+=10;},
-choices:[{label:"判断",next:"ep2_decision"}]
-},
-
-ep2_artisan:{
-text:"文化を守る",
-effect:()=>{state.ep2_route="savior";state.score+=20;},
-choices:[{label:"判断",next:"ep2_decision"}]
-},
-
-ep2_decision:{
-text:"どう判断？",
-choices:[
-{label:"泥棒",next:"ep3_start"},
-{label:"アート",next:"ep3_start"},
-{label:"守る人",next:"ep3_start"}
-]
-},
-
-// ===== 第3話 =====
-ep3_start:{
-text:"追跡開始！",
-effect:()=>sounds.run.play(),
-choices:[{label:"追う",next:"ep3_chase"}]
-},
-
-ep3_chase:{
-text:"どこへ？",
-timer:5,
-choices:[
-{label:"商店街",next:"ep3_fail"},
-{label:"都電",next:"ep3_fail"},
-{label:"遊園地",next:"ep3_park"}
-]
-},
-
-ep3_fail:{
-text:"見失った",
-effect:()=>state.score-=10,
-choices:[{label:"次へ",next:"ep4_intro"}]
-},
-
-ep3_park:{
-text:"停電！",
-effect:()=>sounds.spray.play(),
-choices:[
-{label:"観覧車",next:"ep3_lost"},
-{label:"売店",next:"ep3_lost"},
-{label:"出口",next:"ep3_escape"}
-]
-},
-
-ep3_lost:{
-text:"消えた",
-effect:()=>state.score-=5,
-choices:[{label:"次へ",next:"ep4_intro"}]
-},
-
-ep3_escape:{
-text:"出口へ！",
-effect:()=>{
-if(state.ep1_correct && state.ep2_route==="savior"){
-state.caught=true;
-state.score+=30;
-}
-},
-choices:[{label:"次へ",next:"ep4_intro"}]
-},
-
-// ===== 第4話 =====
-ep4_intro:{
-text:"真相へ",
-choices:[{label:"進む",next:"ep4_final"}]
-},
-
-ep4_final:{
-text:()=>{
-if(state.caught){
-return "対面成功！\n『価値は、見る人が決める』\nスコア:"+state.score;
-}else{
-return "逃げられた…\nスコア:"+state.score;
-}
-},
-choices:[{label:"リスタート",next:"ep1_intro"}]
-}
-
-}
+// ゲーム状態
+let state = {
+  score: 0,
+  timerInterval: null,
+  currentScene: "ep1_1"
 };
 
-// ===== 実行 =====
-let current=data.start;
+// シナリオデータ
+const scenario = {
+  // === 第1話 ===
+  "ep1_1": {
+    name: "システム", color: "color-sys", loc: "小学校の教室",
+    text: "第一話　『荒川区』に流れていない川\n\n「荒川区には、荒川は流れていない。」\n社会科の先生がそう言った瞬間、教室がざわついた。",
+    choices: [{ label: "次へ", next: "ep1_2" }]
+  },
+  "ep1_2": {
+    name: "才蔵", color: "color-saizo", loc: "教室の後ろ",
+    text: "「昔は今の隅田川が“荒川”って呼ばれてたんだよ。」\n\n細身でメガネ。クイズやパズルが好きな僕、才蔵はノートに校舎の見取り図を描いていた。",
+    choices: [{ label: "次へ", next: "ep1_3" }]
+  },
+  "ep1_3": {
+    name: "門太", color: "color-monta", loc: "教室の後ろ",
+    text: "「そんなことより昨日ニュース見た！？ 怪盗ジャンクシーだよ！」\n\n短髪で日焼けした門太が身ぶり手ぶりで騒ぐ。\n考えるより先に体が動く、僕の相棒だ。",
+    choices: [{ label: "次へ", next: "ep1_4" }]
+  },
+  "ep1_4": {
+    name: "生徒の声", color: "color-sys", loc: "昇降口",
+    text: "「おーい！ うちの学校にも出たぞー！！」\n\n一瞬、空気が止まり、次の瞬間全員がダッシュした。昇降口の壁には、スプレーで描かれた影絵みたいな子どもの絵と『JUNKSY』の文字。",
+    choices: [{ label: "次へ", next: "ep1_5" }]
+  },
+  "ep1_5": {
+    name: "門太", color: "color-monta", loc: "郷土資料室",
+    text: "「おい才蔵、資料室の展示がなくなってる！ でもさ、なんであんなガラクタ？ もっと金目のもんあるだろ？」",
+    choices: [
+      { label: "現場をよく調べる", next: "ep1_investigate" }
+    ]
+  },
+  "ep1_investigate": {
+    name: "才蔵", color: "color-saizo", loc: "郷土資料室",
+    text: "ガラスケースはきれいに空っぽだ。工具で丁寧に外された跡がある。残った写真パネルを見て、僕は気づいた。\n「順番に考えよう。なくなっているのは……看板、提灯、のれん……」",
+    choices: [
+      { label: "古いものばかりだ", next: "ep1_wrong1" },
+      { label: "全部『文字』が書いてある", next: "ep1_correct1" }
+    ]
+  },
+  "ep1_wrong1": {
+    name: "門太", color: "color-monta", loc: "郷土資料室",
+    text: "「古いからって高く売れるか？ 謎だなー」\n（推理ポイントを逃した…）",
+    action: () => { state.score -= 10; },
+    choices: [{ label: "もう一度考える", next: "ep1_investigate" }]
+  },
+  "ep1_correct1": {
+    name: "才蔵", color: "color-saizo", loc: "郷土資料室",
+    text: "「点と点がつながった。門太、なくなってるのは全部『文字』だ。偶然じゃない。この街の、昔の文字だけを狙ってるんだ。」",
+    action: () => { state.score += 30; },
+    choices: [{ label: "次へ", next: "ep2_1" }]
+  },
 
-function startTimer(seconds, failNext){
-clearInterval(state.timer);
-let time=seconds;
-document.getElementById("timer").innerText="残り："+time;
+  // === 第2話 ===
+  "ep2_1": {
+    name: "システム", color: "color-sys", loc: "廊下",
+    text: "第二話　泥棒か、救世主か\n\nその時、資料室の先生が段ボールを抱えて入ってきた。\n「この棚の文化財も、倉庫整理で処分かなあ。保管し続けられないのよ」",
+    choices: [{ label: "次へ", next: "ep2_2" }]
+  },
+  "ep2_2": {
+    name: "才蔵", color: "color-saizo", loc: "廊下",
+    text: "（処分……？）\n「つまり――答えはひとつ。」",
+    choices: [
+      { label: "ジャンクシーはゴミ回収業者だ", next: "ep2_wrong1" },
+      { label: "捨てられる前に『救い出してる』んだ", next: "ep2_correct1" }
+    ]
+  },
+  "ep2_wrong1": {
+    name: "門太", color: "color-monta", loc: "廊下",
+    text: "「ボランティアでゴミ捨てしてくれてるのか！ いい奴じゃん！」\n「……いや、情報が足りない。考え直そう」",
+    action: () => { state.score -= 10; },
+    choices: [{ label: "考え直す", next: "ep2_2" }]
+  },
+  "ep2_correct1": {
+    name: "才蔵", color: "color-saizo", loc: "廊下",
+    text: "「ジャンクシーは『いらない物』を集めてる。誰も守らないから、自分が守るしかないって。いちばん不器用なヒーローだ」",
+    action: () => { state.score += 30; },
+    choices: [{ label: "次へ", next: "ep2_3" }]
+  },
+  "ep2_3": {
+    name: "門太", color: "color-monta", loc: "廊下",
+    text: "廊下の掲示板に目をとめる。\n『来週　熊野前商店街アーチ撤去工事（老朽化のため）』\n\n「おい才蔵！ じゃあ次に狙われるのは……！」",
+    choices: [{ label: "今夜、絶対に来る！", next: "ep3_1" }]
+  },
 
-state.timer=setInterval(()=>{
-time--;
-document.getElementById("timer").innerText="残り："+time;
+  // === 第3話 ===
+  "ep3_1": {
+    name: "システム", color: "color-sys", loc: "熊野前商店街・夜",
+    text: "第三話　完全包囲網を嘲笑う『荒川』マジック\n\nシャッターが並ぶ深夜の商店街。カチ……という金属音。\n黒いフードの影が、古いアーチのボルトを外している。",
+    choices: [{ label: "次へ", next: "ep3_2" }]
+  },
+  "ep3_2": {
+    name: "門太", color: "color-monta", loc: "熊野前商店街",
+    text: "「待てーーーー！！」\n\n門太のスイッチが入り、全力ダッシュ！\n「オレが追う！才蔵、考えろ！」",
+    choices: [{ label: "追跡開始！", next: "ep3_chase1" }]
+  },
+  "ep3_chase1": {
+    name: "システム", color: "color-sys", loc: "都電通り",
+    text: "【制限時間イベント】\n警察も合流し、パトカーが交差点を塞ぐ。都電も停止、橋も封鎖！\nジャンクシーはどこへ逃げ込んだ！？",
+    time: 5,
+    timeout: "ep3_timeout",
+    choices: [
+      { label: "路地裏", next: "ep3_timeout" },
+      { label: "あらかわ遊園", next: "ep3_park" },
+      { label: "駅の構内", next: "ep3_timeout" }
+    ]
+  },
+  "ep3_timeout": {
+    name: "門太", color: "color-monta", loc: "街角",
+    text: "「くそっ、見失った！！ 足なら負けねーのに！」",
+    action: () => { state.score -= 20; },
+    choices: [{ label: "遊園地の方角が怪しい…", next: "ep3_park" }]
+  },
+  "ep3_park": {
+    name: "才蔵", color: "color-saizo", loc: "あらかわ遊園",
+    text: "「遊園地だ！ 完全に袋のネズミのはず……」\n\nバチン！\nその瞬間、園内の照明が全て落ちた！ 警察の無線がパニックを起こす。",
+    action: () => { if(se.spray) se.spray.play(); },
+    choices: [{ label: "暗闇の中を探す", next: "ep3_dark" }]
+  },
+  "ep3_dark": {
+    name: "才蔵", color: "color-saizo", loc: "あらかわ遊園",
+    text: "【制限時間イベント】\n非常灯が点いた。一瞬の暗闇で、ジャンクシーはどこに向かった？",
+    time: 5,
+    timeout: "ep3_timeout_dark",
+    choices: [
+      { label: "観覧車の上", next: "ep3_timeout_dark" },
+      { label: "正面ゲート", next: "ep3_timeout_dark" },
+      { label: "職員通用口（裏門）", next: "ep3_correct_dark" }
+    ]
+  },
+  "ep3_timeout_dark": {
+    name: "才蔵", color: "color-saizo", loc: "あらかわ遊園",
+    text: "「いない……。どこを探してもいない。完全に消え失せた……」",
+    choices: [{ label: "次へ", next: "ep4_1" }]
+  },
+  "ep3_correct_dark": {
+    name: "才蔵", color: "color-saizo", loc: "あらかわ遊園",
+    text: "「入口とは逆方向……裏門だ！ 僕たちを誘い込んだんだ！」\n\n駆けつけると、地面に黒いステンシルが笑っていた。\n『JUNKSY』",
+    action: () => { state.score += 40; },
+    choices: [{ label: "次へ", next: "ep4_1" }]
+  },
 
-if(time<=0){
-clearInterval(state.timer);
-if(failNext){
-current=failNext;
-render();
-}
-}
-},1000);
-}
-
-function render(){
-const scene=data.scenes[current];
-
-if(scene.effect) scene.effect();
-
-document.getElementById("score").innerText="スコア："+state.score;
-
-const textEl=document.getElementById("text");
-const choicesEl=document.getElementById("choices");
-
-textEl.innerText=typeof scene.text==="function"?scene.text():scene.text;
-choicesEl.innerHTML="";
-
-document.getElementById("timer").innerText="";
-
-if(scene.timer){
-startTimer(scene.timer,"ep3_fail");
-}
-
-scene.choices.forEach(c=>{
-const btn=document.createElement("button");
-btn.innerText=c.label;
-btn.onclick=()=>{
-sounds.click.play();
-current=c.next;
-render();
+  // === 第4話 ===
+  "ep4_1": {
+    name: "システム", color: "color-sys", loc: "警察との検証会",
+    text: "第四話　価値を決めるのは、この世界に僕らだけ\n\n机の上には荒川区の地図。道路も橋も電車も完全封鎖したのになぜ消えたのか。警察も頭を抱えている。",
+    choices: [{ label: "地図をよく見る", next: "ep4_2" }]
+  },
+  "ep4_2": {
+    name: "才蔵", color: "color-saizo", loc: "検証会",
+    text: "「答えはいつも、すぐ近くにある。思い出してよ門太。荒川区には……」",
+    choices: [
+      { label: "地下鉄がある", next: "ep4_wrong" },
+      { label: "荒川は流れていないが、別の川がある", next: "ep4_correct" }
+    ]
+  },
+  "ep4_wrong": {
+    name: "門太", color: "color-monta", loc: "検証会",
+    text: "「地下鉄なら電車止まってるだろ！ 細けぇことはいいから考えろ！」",
+    action: () => { state.score -= 10; },
+    choices: [{ label: "考え直す", next: "ep4_2" }]
+  },
+  "ep4_correct": {
+    name: "才蔵", color: "color-saizo", loc: "検証会",
+    text: "「隅田川だ！ 遊園地のすぐ裏は川。道路も橋も関係ない。あいつはボートで、包囲網の外へ悠々と逃げたんだ！」",
+    action: () => { state.score += 50; },
+    choices: [{ label: "次へ", next: "ep4_3" }]
+  },
+  "ep4_3": {
+    name: "怪盗ジャンクシー", color: "color-junksy", loc: "動画サイト",
+    text: "数日後、新しい動画がアップされた。\n柔らかなライトに照らされた古い看板。スプレーの音。\n\n『JUNKは、まだ眠ってるだけだ。価値は、見る人が決める。次の作品で会おう』",
+    choices: [{ label: "結末へ", next: "ep4_end" }]
+  },
+  "ep4_end": {
+    name: "門太", color: "color-monta", loc: "いつもの通学路",
+    text: "「スケールでかすぎだろ……。でも、また絶対来るよな！」\n\n才蔵は小さく笑った。\n「うん。だってこの街、まだ“宝”がいっぱい残ってるから。」\n\n「よーし！つぎの事件いこーぜ！」",
+    choices: [{ label: "タイトルへ戻る", next: "ep1_1" }]
+  }
 };
-choicesEl.appendChild(btn);
-});
+
+// 描画処理
+function renderScene(sceneId) {
+  const scene = scenario[sceneId];
+  state.currentScene = sceneId;
+
+  // アクション実行（スコア加算など）
+  if (scene.action) scene.action();
+  document.getElementById("score-display").innerText = "探偵ポイント: " + state.score;
+  document.getElementById("location-display").innerText = "現在地: " + scene.loc;
+
+  // テキストの描画
+  const nameEl = document.getElementById("character-name");
+  nameEl.innerText = scene.name;
+  nameEl.className = scene.color;
+  document.getElementById("message-text").innerText = scene.text;
+
+  // 選択肢の描画
+  const choicesDiv = document.getElementById("choices-container");
+  choicesDiv.innerHTML = "";
+  
+  scene.choices.forEach(c => {
+    const btn = document.createElement("button");
+    btn.className = "choice-btn";
+    btn.innerText = c.label;
+    btn.onclick = () => {
+      clearTimeout(state.timerInterval);
+      document.getElementById("timer-bar").style.display = "none";
+      if(se.click) se.click.play().catch(e=>{});
+      renderScene(c.next);
+    };
+    choicesDiv.appendChild(btn);
+  });
+
+  // タイマーイベント
+  if (scene.time) {
+    const timerBar = document.getElementById("timer-bar");
+    timerBar.style.display = "block";
+    timerBar.style.transition = "none";
+    timerBar.style.width = "100%";
+    
+    // アニメーションを確実に発火させるための微小な遅延
+    setTimeout(() => {
+      timerBar.style.transition = `width ${scene.time}s linear`;
+      timerBar.style.width = "0%";
+    }, 50);
+
+    state.timerInterval = setTimeout(() => {
+      timerBar.style.display = "none";
+      renderScene(scene.timeout);
+    }, scene.time * 1000);
+  }
 }
 
-render();
+// ゲーム開始
+window.onload = () => {
+  renderScene("ep1_1");
+};
 </script>
 </body>
 </html>
