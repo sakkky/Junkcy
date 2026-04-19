@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>少年探偵団 vs ジャンクシー</title>
+<style>
+body { font-family:sans-serif; background:#111; color:#fff; display:flex; justify-content:center; padding:20px;}
+#app { max-width:600px; width:100%;}
+#text { margin-bottom:20px; line-height:1.8; min-height:140px;}
+button { width:100%; padding:12px; margin-bottom:10px; background:#222; color:#fff; border:1px solid #444;}
+button:hover { background:#333;}
+#timer { margin-bottom:10px; color:#f66;}
+#score { margin-bottom:10px; color:#6f6;}
+</style>
+</head>
+<body>
+<div id="app">
+<div id="score"></div>
+<div id="timer"></div>
+<div id="text"></div>
+<div id="choices"></div>
+</div>
+
+<script>
+// ===== 状態 =====
+const state = {
+  ep1_correct:false,
+  ep2_route:null,
+  caught:false,
+  score:0,
+  timer:null
+};
+
+// ===== 音 =====
+const sounds = {
+  click: new Audio("https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg"),
+  spray: new Audio("https://actions.google.com/sounds/v1/foley/spray_paint.ogg"),
+  run: new Audio("https://actions.google.com/sounds/v1/foley/footsteps_run.ogg")
+};
+
+// ===== データ =====
+const data = {
+start:"ep1_intro",
+
+scenes:{
+
+ep1_intro:{
+text:"荒川区には、荒川は流れていない。\n事件が始まる。",
+choices:[{label:"開始",next:"ep1_choice"}]
+},
+
+ep1_choice:{
+text:"どこを調べる？",
+timer:8,
+choices:[
+{label:"資料室",next:"ep1_A"},
+{label:"ステンシル",next:"ep1_B"},
+{label:"先生",next:"ep1_C"}
+]
+},
+
+ep1_A:{text:"全部“文字”だ。",choices:[{label:"推理",next:"ep1_guess"}]},
+ep1_B:{text:"絵と一致。",choices:[{label:"推理",next:"ep1_guess"}]},
+ep1_C:{text:"処分予定。",choices:[{label:"推理",next:"ep1_guess"}]},
+
+ep1_guess:{
+text:"目的は？",
+timer:6,
+choices:[
+{label:"金",next:"ep1_fail"},
+{label:"いたずら",next:"ep1_fail"},
+{label:"救う",next:"ep1_ok"}
+]
+},
+
+ep1_fail:{
+text:"推理失敗",
+effect:()=>state.score-=10,
+choices:[{label:"次へ",next:"ep2_intro"}]
+},
+
+ep1_ok:{
+text:"正解！",
+effect:()=>{
+state.ep1_correct=true;
+state.score+=20;
+},
+choices:[{label:"次へ",next:"ep2_intro"}]
+},
+
+// ===== 第2話 =====
+ep2_intro:{
+text:"ジャンクシーは何者？",
+choices:[
+{label:"警察",next:"ep2_police"},
+{label:"住民",next:"ep2_resident"},
+{label:"職人",next:"ep2_artisan"}
+]
+},
+
+ep2_police:{
+text:"犯罪だ",
+effect:()=>{state.ep2_route="crime";state.score+=5;},
+choices:[{label:"判断",next:"ep2_decision"}]
+},
+
+ep2_resident:{
+text:"微妙",
+effect:()=>{state.ep2_route="neutral";state.score+=10;},
+choices:[{label:"判断",next:"ep2_decision"}]
+},
+
+ep2_artisan:{
+text:"文化を守る",
+effect:()=>{state.ep2_route="savior";state.score+=20;},
+choices:[{label:"判断",next:"ep2_decision"}]
+},
+
+ep2_decision:{
+text:"どう判断？",
+choices:[
+{label:"泥棒",next:"ep3_start"},
+{label:"アート",next:"ep3_start"},
+{label:"守る人",next:"ep3_start"}
+]
+},
+
+// ===== 第3話 =====
+ep3_start:{
+text:"追跡開始！",
+effect:()=>sounds.run.play(),
+choices:[{label:"追う",next:"ep3_chase"}]
+},
+
+ep3_chase:{
+text:"どこへ？",
+timer:5,
+choices:[
+{label:"商店街",next:"ep3_fail"},
+{label:"都電",next:"ep3_fail"},
+{label:"遊園地",next:"ep3_park"}
+]
+},
+
+ep3_fail:{
+text:"見失った",
+effect:()=>state.score-=10,
+choices:[{label:"次へ",next:"ep4_intro"}]
+},
+
+ep3_park:{
+text:"停電！",
+effect:()=>sounds.spray.play(),
+choices:[
+{label:"観覧車",next:"ep3_lost"},
+{label:"売店",next:"ep3_lost"},
+{label:"出口",next:"ep3_escape"}
+]
+},
+
+ep3_lost:{
+text:"消えた",
+effect:()=>state.score-=5,
+choices:[{label:"次へ",next:"ep4_intro"}]
+},
+
+ep3_escape:{
+text:"出口へ！",
+effect:()=>{
+if(state.ep1_correct && state.ep2_route==="savior"){
+state.caught=true;
+state.score+=30;
+}
+},
+choices:[{label:"次へ",next:"ep4_intro"}]
+},
+
+// ===== 第4話 =====
+ep4_intro:{
+text:"真相へ",
+choices:[{label:"進む",next:"ep4_final"}]
+},
+
+ep4_final:{
+text:()=>{
+if(state.caught){
+return "対面成功！\n『価値は、見る人が決める』\nスコア:"+state.score;
+}else{
+return "逃げられた…\nスコア:"+state.score;
+}
+},
+choices:[{label:"リスタート",next:"ep1_intro"}]
+}
+
+}
+};
+
+// ===== 実行 =====
+let current=data.start;
+
+function startTimer(seconds, failNext){
+clearInterval(state.timer);
+let time=seconds;
+document.getElementById("timer").innerText="残り："+time;
+
+state.timer=setInterval(()=>{
+time--;
+document.getElementById("timer").innerText="残り："+time;
+
+if(time<=0){
+clearInterval(state.timer);
+if(failNext){
+current=failNext;
+render();
+}
+}
+},1000);
+}
+
+function render(){
+const scene=data.scenes[current];
+
+if(scene.effect) scene.effect();
+
+document.getElementById("score").innerText="スコア："+state.score;
+
+const textEl=document.getElementById("text");
+const choicesEl=document.getElementById("choices");
+
+textEl.innerText=typeof scene.text==="function"?scene.text():scene.text;
+choicesEl.innerHTML="";
+
+document.getElementById("timer").innerText="";
+
+if(scene.timer){
+startTimer(scene.timer,"ep3_fail");
+}
+
+scene.choices.forEach(c=>{
+const btn=document.createElement("button");
+btn.innerText=c.label;
+btn.onclick=()=>{
+sounds.click.play();
+current=c.next;
+render();
+};
+choicesEl.appendChild(btn);
+});
+}
+
+render();
+</script>
+</body>
+</html>
