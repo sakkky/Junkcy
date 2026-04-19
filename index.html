@@ -259,7 +259,7 @@ const scenario = {
   "ep3_chase1": {
     name: "システム", color: "color-sys", loc: "都電通り",
     text: "【制限時間イベント】\n警察も合流し、パトカーが交差点を塞ぐ。都電も停止、橋も封鎖！\nジャンクシーはどこへ逃げ込んだ！？",
-    time: 5,
+    time: 15, // ★ 5秒から15秒に変更しました
     timeout: "ep3_timeout",
     choices: [
       { label: "路地裏", next: "ep3_timeout" },
@@ -282,7 +282,7 @@ const scenario = {
   "ep3_dark": {
     name: "才蔵", color: "color-saizo", loc: "あらかわ遊園",
     text: "【制限時間イベント】\n非常灯が点いた。一瞬の暗闇で、ジャンクシーはどこに向かった？",
-    time: 5,
+    time: 15, // ★ 5秒から15秒に変更しました
     timeout: "ep3_timeout_dark",
     choices: [
       { label: "観覧車の上", next: "ep3_timeout_dark" },
