@@ -2,114 +2,131 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>少年探偵団 vs ジャンクシー</title>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;700&display=swap');
   
+  /* スマホのブラウザバー対策 */
+  html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    overflow: hidden;
+  }
+
   body {
     font-family: 'M PLUS Rounded 1c', sans-serif;
-    background-color: #1a1a24;
+    background-color: #000;
     color: #f0f0f0;
-    margin: 0;
     display: flex;
     justify-content: center;
     align-items: center;
-    height: 100vh;
-    overflow: hidden;
   }
   
   #game-container {
     width: 100%;
     max-width: 800px;
-    height: 100%;
-    max-height: 600px;
+    height: 100dvh; /* 最新のスマホブラウザ対応の高さ設定 */
     background: #2a2a36;
-    position: relative;
-    box-shadow: 0 0 20px rgba(0,0,0,0.8);
     display: flex;
     flex-direction: column;
-  }
-
-  /* 背景画像代わりの演出エリア */
-  #scene-view {
-    flex: 1;
-    background: linear-gradient(to bottom, #3a4052, #1a1a24);
     position: relative;
-    padding: 20px;
-    display: flex;
-    flex-direction: column;
-    justify-content: flex-start;
   }
 
   #timer-bar {
-    height: 10px;
+    height: 8px;
     background: #ff4757;
     width: 100%;
     transition: width 1s linear;
     display: none;
+    flex-shrink: 0;
+  }
+
+  /* 上部：演出・選択肢エリア */
+  #scene-view {
+    flex: 1;
+    background: linear-gradient(to bottom, #3a4052, #1a1a24);
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+    box-sizing: border-box;
+    overflow-y: auto;
   }
 
   #info-header {
+    position: absolute;
+    top: 15px;
+    left: 15px;
+    right: 15px;
     display: flex;
     justify-content: space-between;
-    font-size: 14px;
-    color: #888;
-    margin-bottom: 10px;
+    font-size: 13px;
+    color: #aaa;
+    z-index: 20;
   }
 
-  /* テキストウィンドウ */
+  /* 選択肢の配置 */
+  #choices-container {
+    width: 100%;
+    max-width: 400px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    z-index: 10;
+    margin-top: 20px;
+  }
+
+  button.choice-btn {
+    background: rgba(50, 50, 70, 0.95);
+    color: #fff;
+    border: 2px solid #888;
+    padding: 16px;
+    font-size: 16px;
+    font-weight: bold;
+    border-radius: 10px;
+    cursor: pointer;
+    font-family: inherit;
+    transition: all 0.2s;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+  }
+
+  button.choice-btn:active {
+    background: #fff;
+    color: #000;
+    transform: translateY(2px);
+    box-shadow: none;
+  }
+
+  /* 下部：テキストウィンドウ */
   #text-window {
-    height: 200px;
-    background: rgba(0, 0, 0, 0.85);
+    height: 38%; /* 画面の下約4割をテキストエリアに */
+    min-height: 220px;
+    background: rgba(10, 10, 15, 0.95);
     border-top: 3px solid #555;
-    padding: 20px;
+    padding: 15px 20px 25px 20px;
     box-sizing: border-box;
-    position: relative;
+    overflow-y: auto; /* 文字が多い場合はスクロール可能に */
+    display: flex;
+    flex-direction: column;
   }
 
   #character-name {
     font-weight: bold;
-    font-size: 18px;
-    margin-bottom: 10px;
-    letter-spacing: 2px;
+    font-size: 16px;
+    margin-bottom: 8px;
+    letter-spacing: 1px;
+    flex-shrink: 0;
   }
 
   #message-text {
-    font-size: 16px;
-    line-height: 1.8;
+    font-size: 15px;
+    line-height: 1.7;
     white-space: pre-wrap;
-  }
-
-  /* 選択肢エリア */
-  #choices-container {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    width: 80%;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    z-index: 10;
-  }
-
-  button.choice-btn {
-    background: rgba(40, 40, 60, 0.95);
-    color: #fff;
-    border: 2px solid #777;
-    padding: 15px;
-    font-size: 16px;
-    border-radius: 8px;
-    cursor: pointer;
-    font-family: inherit;
-    transition: all 0.2s;
-  }
-
-  button.choice-btn:hover {
-    background: #fff;
-    color: #000;
-    border-color: #fff;
+    flex-grow: 1;
   }
 
   /* キャラクターカラー */
@@ -126,7 +143,7 @@
   <div id="timer-bar"></div>
   <div id="scene-view">
     <div id="info-header">
-      <span id="score-display">探偵ポイント: 0</span>
+      <span id="score-display">探偵Pt: 0</span>
       <span id="location-display">荒川区 某所</span>
     </div>
     <div id="choices-container"></div>
@@ -138,23 +155,19 @@
 </div>
 
 <script>
-// 効果音（ダミーURLですが、ブラウザの仕様で鳴るものもあります）
 const se = {
   click: new Audio("https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg"),
   spray: new Audio("https://actions.google.com/sounds/v1/foley/spray_paint.ogg"),
   dash: new Audio("https://actions.google.com/sounds/v1/foley/footsteps_run.ogg")
 };
 
-// ゲーム状態
 let state = {
   score: 0,
   timerInterval: null,
   currentScene: "ep1_1"
 };
 
-// シナリオデータ
 const scenario = {
-  // === 第1話 ===
   "ep1_1": {
     name: "システム", color: "color-sys", loc: "小学校の教室",
     text: "第一話　『荒川区』に流れていない川\n\n「荒川区には、荒川は流れていない。」\n社会科の先生がそう言った瞬間、教室がざわついた。",
@@ -203,7 +216,6 @@ const scenario = {
     choices: [{ label: "次へ", next: "ep2_1" }]
   },
 
-  // === 第2話 ===
   "ep2_1": {
     name: "システム", color: "color-sys", loc: "廊下",
     text: "第二話　泥棒か、救世主か\n\nその時、資料室の先生が段ボールを抱えて入ってきた。\n「この棚の文化財も、倉庫整理で処分かなあ。保管し続けられないのよ」",
@@ -214,7 +226,7 @@ const scenario = {
     text: "（処分……？）\n「つまり――答えはひとつ。」",
     choices: [
       { label: "ジャンクシーはゴミ回収業者だ", next: "ep2_wrong1" },
-      { label: "捨てられる前に『救い出してる』んだ", next: "ep2_correct1" }
+      { label: "捨てられる前に『救い出してる』", next: "ep2_correct1" }
     ]
   },
   "ep2_wrong1": {
@@ -231,13 +243,12 @@ const scenario = {
   },
   "ep2_3": {
     name: "門太", color: "color-monta", loc: "廊下",
-    text: "廊下の掲示板に目をとめる。\n『来週　熊野前商店街アーチ撤去工事（老朽化のため）』\n\n「おい才蔵！ じゃあ次に狙われるのは……！」",
+    text: "廊下の掲示板に目をとめる。\n『来週　熊野前商店街アーチ撤去工事』\n\n「おい才蔵！ じゃあ次に狙われるのは……！」",
     choices: [{ label: "今夜、絶対に来る！", next: "ep3_1" }]
   },
 
-  // === 第3話 ===
   "ep3_1": {
-    name: "システム", color: "color-sys", loc: "熊野前商店街・夜",
+    name: "システム", color: "color-sys", loc: "熊野前商店街",
     text: "第三話　完全包囲網を嘲笑う『荒川』マジック\n\nシャッターが並ぶ深夜の商店街。カチ……という金属音。\n黒いフードの影が、古いアーチのボルトを外している。",
     choices: [{ label: "次へ", next: "ep3_2" }]
   },
@@ -292,7 +303,6 @@ const scenario = {
     choices: [{ label: "次へ", next: "ep4_1" }]
   },
 
-  // === 第4話 ===
   "ep4_1": {
     name: "システム", color: "color-sys", loc: "警察との検証会",
     text: "第四話　価値を決めるのは、この世界に僕らだけ\n\n机の上には荒川区の地図。道路も橋も電車も完全封鎖したのになぜ消えたのか。警察も頭を抱えている。",
@@ -303,7 +313,7 @@ const scenario = {
     text: "「答えはいつも、すぐ近くにある。思い出してよ門太。荒川区には……」",
     choices: [
       { label: "地下鉄がある", next: "ep4_wrong" },
-      { label: "荒川は流れていないが、別の川がある", next: "ep4_correct" }
+      { label: "荒川はないが、別の川がある", next: "ep4_correct" }
     ]
   },
   "ep4_wrong": {
@@ -330,23 +340,23 @@ const scenario = {
   }
 };
 
-// 描画処理
 function renderScene(sceneId) {
   const scene = scenario[sceneId];
   state.currentScene = sceneId;
 
-  // アクション実行（スコア加算など）
   if (scene.action) scene.action();
-  document.getElementById("score-display").innerText = "探偵ポイント: " + state.score;
-  document.getElementById("location-display").innerText = "現在地: " + scene.loc;
+  document.getElementById("score-display").innerText = "探偵Pt: " + state.score;
+  document.getElementById("location-display").innerText = scene.loc;
 
-  // テキストの描画
   const nameEl = document.getElementById("character-name");
   nameEl.innerText = scene.name;
   nameEl.className = scene.color;
+  
+  // テキストエリアのスクロールを一番上に戻す
+  const textWindow = document.getElementById("text-window");
   document.getElementById("message-text").innerText = scene.text;
+  textWindow.scrollTop = 0; 
 
-  // 選択肢の描画
   const choicesDiv = document.getElementById("choices-container");
   choicesDiv.innerHTML = "";
   
@@ -363,14 +373,12 @@ function renderScene(sceneId) {
     choicesDiv.appendChild(btn);
   });
 
-  // タイマーイベント
   if (scene.time) {
     const timerBar = document.getElementById("timer-bar");
     timerBar.style.display = "block";
     timerBar.style.transition = "none";
     timerBar.style.width = "100%";
     
-    // アニメーションを確実に発火させるための微小な遅延
     setTimeout(() => {
       timerBar.style.transition = `width ${scene.time}s linear`;
       timerBar.style.width = "0%";
@@ -383,7 +391,6 @@ function renderScene(sceneId) {
   }
 }
 
-// ゲーム開始
 window.onload = () => {
   renderScene("ep1_1");
 };
